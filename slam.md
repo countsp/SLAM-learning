@@ -33,12 +33,12 @@
 LVI-SAM 是一种视觉、激光、IMU 三种传感器紧耦合的里程计框架，他是由两个独立的里程计（VINS-Mono 以及 LIO-SAM）融合而成，视觉里程计给激光里程计提供高频先验位姿，回环检测，而激光里程计给视觉里程计提供初始化的先验以及特征点深度信息。
 
 
-* **[LOAM](#LOAM)**
+* **[LOAM/A-LOAM](#LOAM/A-LOAM)**
 * **[A-LOAM](#A-LOAM)**
 
 ---
 
-#### LOAM
+#### LOAM/A-LOAM
 
 1.选择面点、角点。16线Velodyne一圈1800点等分为4等分，每一份最多2角点、四个平面点。
 
@@ -46,16 +46,53 @@ LVI-SAM 是一种视觉、激光、IMU 三种传感器紧耦合的里程计框�
 
 通过同一个线上邻近两点的距离差来判定角点和面点。面点的c小，角点的c大。
 
-2.删除异常点
+前端特征提取：传统方法（通过曲率计算平坦/曲率较大）
+
+```
+for (int i = 5; i < cloudSize - 5; i++)
+    { 
+        float diffX = laserCloud->points[i - 5].x + laserCloud->points[i - 4].x + laserCloud->points[i - 3].x + laserCloud->points[i - 2].x + laserCloud->points[i - 1].x - 10 * laserCloud->points[i].x + laserCloud->points[i + 1].x + laserCloud->points[i + 2].x + laserCloud->points[i + 3].x + laserCloud->points[i + 4].x + laserCloud->points[i + 5].x;
+        float diffY = laserCloud->points[i - 5].y + laserCloud->points[i - 4].y + laserCloud->points[i - 3].y + laserCloud->points[i - 2].y + laserCloud->points[i - 1].y - 10 * laserCloud->points[i].y + laserCloud->points[i + 1].y + laserCloud->points[i + 2].y + laserCloud->points[i + 3].y + laserCloud->points[i + 4].y + laserCloud->points[i + 5].y;
+        float diffZ = laserCloud->points[i - 5].z + laserCloud->points[i - 4].z + laserCloud->points[i - 3].z + laserCloud->points[i - 2].z + laserCloud->points[i - 1].z - 10 * laserCloud->points[i].z + laserCloud->points[i + 1].z + laserCloud->points[i + 2].z + laserCloud->points[i + 3].z + laserCloud->points[i + 4].z + laserCloud->points[i + 5].z;
+
+        cloudCurvature[i] = diffX * diffX + diffY * diffY + diffZ * diffZ;
+```
+
+2.删除异常点(LIO-SAM中实现，A-LOAM无)
 
 ![Screenshot from 2024-04-10 03-35-35](https://github.com/countsp/SLAM-learning/assets/102967883/dc8b31fe-41f7-49c2-a199-56f1d5aeda50)
 
 (a）中的B是面点，但是与射线平行，删去
 
+LIO-SAM中用当前点与左右点的相对距离差判定: 如果diff > 0.02 * cloudInfo.pointRange[i]，即两点距离比较大，则可能是平行的点，则当前点设置为无效点，不做特征计算。
+
+```
+float diff1 = std::abs(float(cloudInfo.pointRange[i-1] - cloudInfo.pointRange[i]));
+float diff2 = std::abs(float(cloudInfo.pointRange[i+1] - cloudInfo.pointRange[i]));
+
+if (diff1 > 0.02 * cloudInfo.pointRange[i] && diff2 > 0.02 * cloudInfo.pointRange[i])
+cloudNeighborPicked[i] = 1;
+```
 (b)中的A断层了，不稳定，删去
 
- 3. 使用KD-tree寻找两帧之间的匹配对
- 4. 
+LIO-SAM中用相邻两点的绝对距离差判定: 如果depth1 - depth2 > 0.3 ， 则depth 1容易被遮挡，则之前五个点设置为无效点,不做特征计算。
+
+```
+
+
+if(depth1 - depth2 > 0.3)
+{
+cloudNeighborPicked[i-5]=1;
+cloudNeighborPicked[i-4]=1;
+cloudNeighborPicked[i-3]=1;
+cloudNeighborPicked[i-2]=1;
+cloudNeighborPicked[i-1]=1;
+cloudNeighborPicked[i]=1;
+}
+```
+
+使用KD-tree寻找两帧之间的匹配对
+
 ![Screenshot from 2024-04-10 03-44-05](https://github.com/countsp/SLAM-learning/assets/102967883/84439891-a796-44d7-b871-8d3e41925b7c)
 
 匹配线寻找：i是k+1帧边缘点的一部分，找到上一帧离i最近的线点j，j与i不同扫描线。
@@ -94,4 +131,3 @@ LVI-SAM 是一种视觉、激光、IMU 三种传感器紧耦合的里程计框�
 ---
 
 #### A-LOAM
- 
