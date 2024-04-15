@@ -46,17 +46,6 @@ LVI-SAM 是一种视觉、激光、IMU 三种传感器紧耦合的里程计框�
 
 通过同一个线上邻近两点的距离差来判定角点和面点。面点的c小，角点的c大。
 
-前端特征提取：传统方法（通过曲率计算平坦/曲率较大）
-
-```
-for (int i = 5; i < cloudSize - 5; i++)
-    { 
-        float diffX = laserCloud->points[i - 5].x + laserCloud->points[i - 4].x + laserCloud->points[i - 3].x + laserCloud->points[i - 2].x + laserCloud->points[i - 1].x - 10 * laserCloud->points[i].x + laserCloud->points[i + 1].x + laserCloud->points[i + 2].x + laserCloud->points[i + 3].x + laserCloud->points[i + 4].x + laserCloud->points[i + 5].x;
-        float diffY = laserCloud->points[i - 5].y + laserCloud->points[i - 4].y + laserCloud->points[i - 3].y + laserCloud->points[i - 2].y + laserCloud->points[i - 1].y - 10 * laserCloud->points[i].y + laserCloud->points[i + 1].y + laserCloud->points[i + 2].y + laserCloud->points[i + 3].y + laserCloud->points[i + 4].y + laserCloud->points[i + 5].y;
-        float diffZ = laserCloud->points[i - 5].z + laserCloud->points[i - 4].z + laserCloud->points[i - 3].z + laserCloud->points[i - 2].z + laserCloud->points[i - 1].z - 10 * laserCloud->points[i].z + laserCloud->points[i + 1].z + laserCloud->points[i + 2].z + laserCloud->points[i + 3].z + laserCloud->points[i + 4].z + laserCloud->points[i + 5].z;
-
-        cloudCurvature[i] = diffX * diffX + diffY * diffY + diffZ * diffZ;
-```
 
 2.删除异常点(LIO-SAM中实现，A-LOAM无)
 
@@ -90,6 +79,19 @@ cloudNeighborPicked[i-1]=1;
 cloudNeighborPicked[i]=1;
 }
 ```
+3. 特征提取
+
+传统方法（通过曲率计算平坦/曲率较大）
+
+```
+for (int i = 5; i < cloudSize - 5; i++)
+    { 
+        float diffX = laserCloud->points[i - 5].x + laserCloud->points[i - 4].x + laserCloud->points[i - 3].x + laserCloud->points[i - 2].x + laserCloud->points[i - 1].x - 10 * laserCloud->points[i].x + laserCloud->points[i + 1].x + laserCloud->points[i + 2].x + laserCloud->points[i + 3].x + laserCloud->points[i + 4].x + laserCloud->points[i + 5].x;
+        float diffY = laserCloud->points[i - 5].y + laserCloud->points[i - 4].y + laserCloud->points[i - 3].y + laserCloud->points[i - 2].y + laserCloud->points[i - 1].y - 10 * laserCloud->points[i].y + laserCloud->points[i + 1].y + laserCloud->points[i + 2].y + laserCloud->points[i + 3].y + laserCloud->points[i + 4].y + laserCloud->points[i + 5].y;
+        float diffZ = laserCloud->points[i - 5].z + laserCloud->points[i - 4].z + laserCloud->points[i - 3].z + laserCloud->points[i - 2].z + laserCloud->points[i - 1].z - 10 * laserCloud->points[i].z + laserCloud->points[i + 1].z + laserCloud->points[i + 2].z + laserCloud->points[i + 3].z + laserCloud->points[i + 4].z + laserCloud->points[i + 5].z;
+
+        cloudCurvature[i] = diffX * diffX + diffY * diffY + diffZ * diffZ;
+```
 
 使用KD-tree寻找两帧之间的匹配对
 
@@ -108,7 +110,7 @@ cloudNeighborPicked[i]=1;
 点到面距离计算：k帧中有点j,m,l;k+1帧中有点i
 
 
-3.运动估计
+4.运动估计
 
 ![Screenshot from 2024-04-10 04-55-07](https://github.com/countsp/SLAM-learning/assets/102967883/d8136bb7-0ab2-45d0-993d-22e5635a3882)
 
@@ -122,7 +124,27 @@ cloudNeighborPicked[i]=1;
 
 论文中使用LM，代码用高斯牛顿法
 
-4.建图
+5.运动补偿
+
+运动补偿的目的就是把所有的点云补偿到某一个时刻，这样就可以把本身在过去100ms 内收集的点云统一到一个时间点上去
+
+比如一种的做法是补偿到起始时刻
+```
+𝑃𝑠𝑡𝑎𝑟𝑡 = 𝑇_𝑠𝑡𝑎𝑟𝑡_𝑐𝑢𝑟𝑟𝑒𝑛𝑡 ∗ 𝑃𝑐𝑢𝑟𝑟𝑒𝑛𝑡
+```
+因此运动补偿需要知道每个点该时刻对应的位姿𝑇_𝑠𝑡𝑎𝑟𝑡_𝑐𝑢𝑟𝑟𝑒𝑛𝑡,通常有几种做法
+
+1、如果有高频里程记，可以比较方便的获取每个点相对起始扫描时刻的位姿
+
+2、如果有 imu，可以方便的求出每个点相对起始点的旋转
+
+3、(A-LOAM使用)如果没有其他传感器，可以使用匀速模型假设，使用上一个帧间里程记的结果作为当前两帧之间的运动，同时假设当前帧也是匀速运动，也可以估计出每个点相对起始时刻的位姿
+
+```
+Eigen::Quaterniond q_point_last = Eigen::Quaterniond::Identity().slerp(s, q_last_curr); //slerp: Spherical linear interpolation 插值
+Eigen::Vector3d t_point_last = s * t_last_curr;
+```
+6.建图
 
 栅格匹配找匹配对，方法为3D KD-tree
 
@@ -131,3 +153,4 @@ cloudNeighborPicked[i]=1;
 ---
 
 #### A-LOAM
+#### 
