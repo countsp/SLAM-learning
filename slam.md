@@ -12,7 +12,7 @@
 
 #### 1. LOAM & A-LOAM
 
-* **[LOAM/A-LOAM](#LOAM/A-LOAM)** （详解）
+* **[LOAM/A-LOAM](#LOAM/A-LOAM)**
 
 ![Screenshot from 2024-04-10 02-41-09](https://github.com/countsp/SLAM-learning/assets/102967883/842c58b1-b7d9-4520-9263-fa1e3c02bd27)
 
