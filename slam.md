@@ -14,7 +14,7 @@
 
 ![Screenshot from 2024-04-10 02-41-09](https://github.com/countsp/SLAM-learning/assets/102967883/842c58b1-b7d9-4520-9263-fa1e3c02bd27)
 
-非常经典的激光里程记和建图方案，也是其他 LOAM 方案的鼻祖，LOAM 只基于激光雷达（可选 IMU），通过把 SLAM 拆分成一个**高频低精的前端**以及一个**低频高精的后端**来实现 lidar 里程记的实时性。
+非常经典的激光里程记和建图方案，也是其他 LOAM 方案的鼻祖，LOAM 只基于激光雷达（可选 IMU），通过把 SLAM 拆分成一个**高频低精的scan-to-scan前端**(帧间里程计)以及一个**低频高精的scan-to-map后端**,来实现 lidar 里程记的实时性。
 
 #### 2.LeGO-LOAM
 
@@ -39,6 +39,15 @@ LVI-SAM 是一种视觉、激光、IMU 三种传感器紧耦合的里程计框�
 ---
 
 #### LOAM/A-LOAM
+
+**地图构成：**
+
+在原始 LOAM 中，使用的是基于珊格的地图存储方式。具体来说，将整个地图分成 21×21×11 个珊格，每个珊格是一个边长 50m 的正方体，当地图逐渐累加时，珊格之外的部分就被舍弃。
+
+如果当前位姿远离的珊格覆盖范围，则地图也就没有意义了，因此，珊格地图也需要随着当前位姿动态调整，从而保证我们可以从珊格地图中取出离当前位姿比较近的点云来进行 scan-to-map 算法，借以获得最优位姿估计。
+
+scan-to-map 算法使用5×5×3的栅格局部地图与scan匹配。
+**流程：**
 
 1.选择面点、角点。16线Velodyne一圈1800点等分为4等分，每一份最多2角点、四个平面点。
 
@@ -144,7 +153,7 @@ for (int i = 5; i < cloudSize - 5; i++)
 Eigen::Quaterniond q_point_last = Eigen::Quaterniond::Identity().slerp(s, q_last_curr); //slerp: Spherical linear interpolation 插值
 Eigen::Vector3d t_point_last = s * t_last_curr;
 ```
-6.建图
+6.建图(后端)
 
 栅格匹配找匹配对，方法为3D KD-tree
 
