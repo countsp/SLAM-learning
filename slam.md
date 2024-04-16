@@ -10,8 +10,10 @@
 
 基于 LOAM 方案通常前端是对当前帧激光雷达提取特征（通常是面特征和线特征），通常后端结合其他传感器信息给当前帧到地图中的匹配提供一个良好的初值（激光slam 中最重要的事情就是给 scan matching 提供一个更准确的 init guess）
 
-#### 1. **[LOAM/A-LOAM](#LOAM/A-LOAM)**
+#### 1. LOAM/A-LOAM
 
+* **[LOAM/A-LOAM](#LOAM/A-LOAM)** （详解）
+* 
 ![Screenshot from 2024-04-10 02-41-09](https://github.com/countsp/SLAM-learning/assets/102967883/842c58b1-b7d9-4520-9263-fa1e3c02bd27)
 
 非常经典的激光里程记和建图方案，也是其他 LOAM 方案的鼻祖，LOAM 只基于激光雷达（可选 IMU），通过把 SLAM 拆分成一个**高频低精的scan-to-scan前端**(帧间里程计)以及一个**低频高精的scan-to-map后端**,来实现 lidar 里程记的实时性。
