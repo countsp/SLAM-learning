@@ -1,5 +1,6 @@
 看icp配准
-
+为什么后端比前端优化器好？
+为什么loam不能做回环检测？
 # 多传感器融合
 
 缺点就是现有的通用的视觉 slam 技术依赖图像的纹理来进行特征点的提取，没有纹理或者黑夜图像就很难被很好的利用。
@@ -184,9 +185,11 @@ Eigen::Vector3d t_point_last = s * t_last_curr;
 #### LeGO-LOAM （代码部分沿用LOAM）
 ![Screenshot from 2024-04-16 03-11-12](https://github.com/countsp/SLAM-learning/assets/102967883/ff46158b-24aa-4110-96ff-cfdedee72365)
 
+要求lidar水平放置
+
 **前端**
 
-1. 对**地面点进行分类和提取**，避免一些一场边缘点的提取
+1. 对**地面点进行分类和提取**，避免一些边缘点的提取
 
 2. 应用了一个简单的点云聚类算法，剔除了一些可能的 outlier 
   
@@ -199,10 +202,100 @@ Eigen::Vector3d t_point_last = s * t_last_curr;
 2. 引入回环检测和位姿图优化概念，使得地图的全局一致性更好。用当前帧与历史帧ICP匹配、gtsam优化。
 
 
-
-地面分离
+**地面分离**
 
 ![Screenshot from 2024-04-16 05-18-33](https://github.com/countsp/SLAM-learning/assets/102967883/ae9915ed-5a68-4dd3-b1c0-d93b7404e3ea)
 
 如上图，相邻的两个扫描线束的同一列打在地面上如 AB 点所示，他们的垂直高度差ℎ = |𝑧0 − 𝑧1|，水平距离差𝑑 = √(𝑥0 − 𝑥1)2 + (𝑦0 − 𝑦1)2，计算垂直高度差和水平高度差的角度，𝜃 = 𝑎𝑡𝑎𝑛2(ℎ, 𝑑)，理想情况下，𝜃应该接近 0,考虑到一方面激光雷达安装也无法做到绝对水平，另一方面，地面也不是绝对水平，因此，这个角度会略微大于 0,考虑到作者实际在草坪之类的场景下运动，因此这个值被设置成10度，小于10度则考虑为地面点。
 
+```
+angle = atan2(diffZ, sqrt(diffX*diffX + diffY*diffY) ) * 180 / M_PI;
+
+if (abs(angle - sensorMountAngle) <= 10){
+    groundMat.at<int8_t>(i,j) = 1;
+    groundMat.at<int8_t>(i+1,j) = 1;
+```
+
+**广度有限BFS**
+在 LeGO-LOAM 中，BFS 算法用于实现一个简单的点云聚类功能。
+
+广度优先遍历（BFS）和深度优先遍历（DFS）同属于两种经典的图遍历的算法。
+
+![Screenshot from 2024-04-17 01-27-55](https://github.com/countsp/SLAM-learning/assets/102967883/7a05f70c-3505-47e8-af59-8623a8940c05)
+
+具体到广度优先遍历算法来说，首先从某个节点出发，一层一层地遍历，下一层必须等到上一层节点全部遍历完成之后才会开始遍历。
+
+比如在上面这个无向图中，如果我们从 A 节点开始遍历，那么首先访问和 A 节点相邻的节点，这里就是 S、B、D，然后在访问和 S、B、D 相邻的其他节点，这里就是 C，因此，遍历的顺序是 A->S->B->D->C;如果我们从 S 开始遍历，则顺序就是 S->A->B->C->D；可以看到，不同的起始点对应的遍历顺序是不同的。
+
+BFS 算法适用于图数据结构，为了把单帧 lidar 点云运用上 BFS 算法，首先需要将其建模成一个图模型，一个很简单有效的办法就是将其投影到一个平面图上，以velodyne-16 为例，我们将其投影到一个 16×1800 大小的图上（这里 16 是一共有 16跟线束，1800 是因为水平分辨率是 0.2 度，一个扫描周期有 1800 个点）如图
+
+![Screenshot from 2024-04-17 01-38-52](https://github.com/countsp/SLAM-learning/assets/102967883/142fa0ca-8cbe-4025-b137-31e3dce1595a)
+
+分别判断近邻和自身距离是否足够近，如果angle 越大（大于60度）则认为两点越可能是同一个聚类物体上的点，则打上同样的 label。
+
+![Screenshot from 2024-04-17 01-40-14](https://github.com/countsp/SLAM-learning/assets/102967883/1b892e10-0a3c-4b59-aef1-739ff7584ad3)
+
+如果angle 越大（大于60度）则认为两点越可能是同一个聚类物体上的点
+
+```
+angle = atan2(d2*sin(alpha), (d1 -d2*cos(alpha)));
+
+if (angle > segmentTheta){
+...
+...
+
+```
+
+超过30个同一个label则视为有效聚类
+
+```
+bool feasibleSegment = false;
+if (allPushedIndSize >= 30)
+    feasibleSegment = true;
+```
+
+考虑到树干等纵向物体被扫描时可能点少（激光雷达纵向分辨率差），另有一个x方向阈值，如果跨x方向像素多，也可以算有效聚类。
+
+```
+ else if (allPushedIndSize >= segmentValidPointNum){
+            int lineCount = 0;
+            for (size_t i = 0; i < N_SCAN; ++i)
+                if (lineCountFlag[i] == true)
+                    ++lineCount;
+            if (lineCount >= segmentValidLineNum)
+                feasibleSegment = true;
+```
+
+**两步优化的帧间里程记**
+和原始 LOAM（或者 A-LOAM）一样，通过前后两帧点云来估计两帧之间的运动，从而累加得到前端里程记的输出，和上述方法使用线面约束同时优化六自由度帧间位姿不同，LeGO-LOAM 的前端分成两个步骤，每个步骤估计三自由度的变量。
+
+1. 利用地面点优化
+
+地面点更符合面特征的性质，因此，地面点的优化问题就使用点到面的约束来构建，同时我们注意到，地面点之间的约束对 x，y 和 yaw 这三个自由度是不能观的。
+
+当这三个自由度的值发生变化时，点到面的残差不会发生显著变化，所以，地面点之间的优化只会对 pitch，roll 以及 z 进行约束和优化。
+
+calculateTransformationSurf()中
+
+```
+transformCur[0] += matX.at<float>(0, 0);  // pitch
+transformCur[2] += matX.at<float>(1, 0);  // roll
+transformCur[4] += matX.at<float>(2, 0);  // z
+```
+2.利用角点优化
+
+第一部优化完 pitch、roll 以及 z 之后，我们仍需对另外三个自由度的变量进行估计，此时，我们选用提取的角点进行优化，由于多线激光雷达提取的角点通常是垂直的边缘特征，因此，这些特征对 x、y 以及 yaw 有着比较好的能观性，通过角点的优化结合上地面点的结果可以得到六自由度的帧间优化结果。
+
+calculateTransformationCorner()中
+
+```
+transformCur[1] += matX.at<float>(0, 0); // yaw
+transformCur[3] += matX.at<float>(1, 0); // x
+transformCur[5] += matX.at<float>(2, 0); // y
+```
+
+#### LIO-SAM
+
+imu对点云做补偿去畸变
+
+因子图优化问题，有四个因子（IMU预积分因子、lidar里程计、GPS 因子、回环因子），对机器人状态（位姿、速度、IMU偏置）进行优化。
