@@ -296,6 +296,60 @@ transformCur[5] += matX.at<float>(2, 0); // y
 
 #### LIO-SAM
 
-imu对点云做补偿去畸变
+imu对点云做补偿去畸变,必须要有imu
 
 因子图优化问题，有四个因子（IMU预积分因子、lidar里程计、GPS 因子、回环因子），对机器人状态（位姿、速度、IMU偏置）进行优化。
+
+imu紧耦合： 1. imu对点云做运动补偿（去畸变）2. 给lidar里程计提供初值。3.优化的结果反过来矫正imu的偏移
+
+ ![Screenshot from 2024-04-10 02-44-28](https://github.com/countsp/SLAM-learning/assets/102967883/4fb7b2ce-ac9f-40aa-8196-62e1f7d3b0ee)
+
+**imageProjection.cpp**
+
+ 1. 通过imuPreintegration的imu积分，提供良好初值
+ 2. cv::Mat对点云预处理
+ 3. 点云旋转部分运动补偿
+
+**featureExtraction.cpp**
+
+1.提取角、面特征并发布
+
+**mapOptimization.cpp**
+
+1.角、面点云配准，得到位姿
+2.lidar里程计、GPS 因子、回环因子 加入因子图，做位姿优化
+
+**imuPreintegration.cpp**
+1.IMU预积分因子、lidar里程计 加入因子图，做位姿优化
+2.估计imu偏置
+
+**因子图**
+在 slam 的后端优化问题中，我们通常会通过一些传感器的观测，比如视觉特征点，IMU 预积分量，Lidar 面点和边缘点的约束去构建一个优化问题，求解状态量（如位姿、速度等），这个时候我们考虑一个问题，当给这个系统新增一个约束时，我们就会重新对所有的约束对状态的优化问题进行求解，当图优化模型增大时，显然进行一次优化的时间也会增加很多，一方面实时性遭遇了挑战，另一方面，很久之前的状态似乎也没有继续更新的必要。为了解决这个问题，一种方式是使用滑动窗口来控制优化问题的规模，通常来讲滑动窗口需要好处理边缘化的问题，另一方面，我们可以使用因子图的模型来解决这个问题。
+
+Kaess 等科研人员提出 iSAM，即增量平滑和建图，使其可以自动增量处理大规模优化问题，具体来说，其内部使用一种基于概率的贝叶斯树，使得每次给因子图增加一个约束时，其会根据贝叶斯树的连接关系，调整和当前结点“关系比较密切”的结点，如此，既保障了优化问题的求解精度，也使得耗时不会随着优化问题的增大而增大。关于因子图优化理论可以参考 iSAM，iSAM2 相关论文等文献。
+
+**因子图中一些概念**
+
+变量结点：类似 g2O 中的顶点或者 ceres 中的参数块，代表需要被优化的变量
+
+因子结点：类似 g2O 中的边或者 ceres 中的 cost function，代表约束，如预积分约束、位姿先验约束、帧间位姿约束等
+
+首先要添加约束、状态：
+
+```
+prevPose_ = lidarPose.compose(lidar2Imu);
+gtsam::PriorFactor<gtsam::Pose3> priorPose(X(0), prevPose_, priorPoseNoise);
+graphFactors.add(priorPose);
+// initial velocity
+prevVel_ = gtsam::Vector3(0, 0, 0);
+gtsam::PriorFactor<gtsam::Vector3> priorVel(V(0), prevVel_, priorVelNoise);
+graphFactors.add(priorVel);
+// initial bias
+prevBias_ = gtsam::imuBias::ConstantBias();
+gtsam::PriorFactor<gtsam::imuBias::ConstantBias> priorBias(B(0), prevBias_, priorBiasNoise);
+graphFactors.add(priorBias);
+// add values
+graphValues.insert(X(0), prevPose_);
+graphValues.insert(V(0), prevVel_);
+graphValues.insert(B(0), prevBias_);
+```
