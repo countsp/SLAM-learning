@@ -308,8 +308,8 @@ imu紧耦合： 1. imu对点云做运动补偿（去畸变）2. 给lidar里程�
 **imageProjection.cpp**
 
  1. 通过imuPreintegration的imu积分，提供良好初值
- 2. cv::Mat对点云预处理
- 3. 点云旋转部分运动补偿
+ 2. cv::Mat对点云预处理，投影到cv::Mat中
+ 3. 点云旋转部分运动补偿，用的是线性插值
 
 **featureExtraction.cpp**
 
