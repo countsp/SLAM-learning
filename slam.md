@@ -351,26 +351,6 @@ gtsam::ImuFactor //imu 因子，通过 IMU 预积分量构造出 IMU 因子，�
 gtsam::BetweenFactor //状态量间的约束，约束相邻两状态量之间的差值不会距离该约束过远
 ```
 
-首先要添加约束、状态：
-
-```
-prevPose_ = lidarPose.compose(lidar2Imu);
-gtsam::PriorFactor<gtsam::Pose3> priorPose(X(0), prevPose_, priorPoseNoise);
-graphFactors.add(priorPose);
-// initial velocity
-prevVel_ = gtsam::Vector3(0, 0, 0);
-gtsam::PriorFactor<gtsam::Vector3> priorVel(V(0), prevVel_, priorVelNoise);
-graphFactors.add(priorVel);
-// initial bias
-prevBias_ = gtsam::imuBias::ConstantBias();
-gtsam::PriorFactor<gtsam::imuBias::ConstantBias> priorBias(B(0), prevBias_, priorBiasNoise);
-graphFactors.add(priorBias);
-// add values
-graphValues.insert(X(0), prevPose_);
-graphValues.insert(V(0), prevVel_);
-graphValues.insert(B(0), prevBias_);
-```
-
 **GT-SAM 关于 IMU 预积分相关接口**
 
 预积分相关参数，IMU 的噪声，重力方向等参数
@@ -400,3 +380,35 @@ gtsam::PreintegratedImuMeasurements
 (4) predict
 
 预积分量可以计算出两帧之间的相对位置、速度、姿态的变化量，那结合上一帧的状态量就可以计算出下一关键帧根据预积分结果的推算值
+
+**代码：**
+
+首先要添加约束、状态：
+
+```
+            // 添加约束 initial pose
+            gtsam::PriorFactor<gtsam::Pose3> priorPose(X(0), prevPose_, priorPoseNoise);
+            graphFactors.add(priorPose);
+
+            prevVel_ = gtsam::Vector3(0, 0, 0);
+            graphFactors.add(priorVel);
+
+            prevBias_ = gtsam::imuBias::ConstantBias();
+            graphFactors.add(priorBias);
+
+            
+            // add values 添加状态量
+            graphValues.insert(X(0), prevPose_);
+            graphValues.insert(V(0), prevVel_);
+            graphValues.insert(B(0), prevBias_);
+            
+            // optimize once
+            optimizer.update(graphFactors, graphValues);
+
+            // update到优化器后清零
+            graphFactors.resize(0);
+            graphValues.clear();
+
+            imuIntegratorImu_->resetIntegrationAndSetBias(prevBias_);
+            imuIntegratorOpt_->resetIntegrationAndSetBias(prevBias_);
+```
