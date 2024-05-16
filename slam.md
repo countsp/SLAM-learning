@@ -313,7 +313,7 @@ imu紧耦合： 1. imu对点云做运动补偿（去畸变）2. 给lidar里程�
 
 **featureExtraction.cpp**
 
-1.提取角、面特征并发布
+1.提取角、面特征并发布（和A-LOAM基本一样）
 
 **mapOptimization.cpp**
 
@@ -323,7 +323,7 @@ imu紧耦合： 1. imu对点云做运动补偿（去畸变）2. 给lidar里程�
 
 **imuPreintegration.cpp**
 
-1.IMU预积分因子、lidar里程计 加入因子图，做位姿优化
+1.IMU预积分因子、lidar里程计 加入因子图，做位姿优化，以imu频率发出紧耦合的lidar里程计，给地图优化提供好的初值
 
 2.估计imu偏置
 
