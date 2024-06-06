@@ -40,7 +40,7 @@ LVI-SAM 是一种视觉、激光、IMU 三种传感器紧耦合的里程计框�
 * **[LOAM/A-LOAM](#LOAM/A-LOAM)**
 
   
-#### LOAM/A-LOAM
+## LOAM/A-LOAM
 
 **地图构成：**
 
@@ -182,7 +182,7 @@ Eigen::Vector3d t_point_last = s * t_last_curr;
 
 ---
 
-#### LeGO-LOAM （代码部分沿用LOAM）
+## LeGO-LOAM （代码部分沿用LOAM）
 ![Screenshot from 2024-04-16 03-11-12](https://github.com/countsp/SLAM-learning/assets/102967883/ff46158b-24aa-4110-96ff-cfdedee72365)
 
 要求lidar水平放置
@@ -295,7 +295,7 @@ transformCur[5] += matX.at<float>(2, 0); // y
 ```
 ---
 
-#### LIO-SAM
+## LIO-SAM
 
 在LeGO-LOAM的基础上新增了对IMU和GPS的紧耦合，LIO-SAM在一些不好的场景下表现要更鲁棒，回环处的漂移也更小。
 
@@ -311,11 +311,11 @@ imu紧耦合： 1. imu对点云做运动补偿（去畸变）2. 给lidar里程�
 
 
 
-##### imageProjection.cpp 点云去畸变（对旋转，不对平移）
+### imageProjection.cpp 点云去畸变（对旋转，不对平移）
 
 **主要功能**
 
-    imageProjecttion的主要功能是订阅原始点云数据和imu数据，根据高频的imu信息对点云成像时雷达的位移和旋转造成的畸变进行校正
+    imageProjection的主要功能是订阅原始点云数据和imu数据，根据高频的imu信息对点云成像时雷达的位移和旋转造成的畸变进行校正
     
     同时，在发布去畸变点云的时候加入IMU输出的角度和IMU里程计（imuPreintegration）的角度和位姿作为该帧的初始位姿，作为图优化的初始估计
     
@@ -323,22 +323,77 @@ imu紧耦合： 1. imu对点云做运动补偿（去畸变）2. 给lidar里程�
 
 **主要流程**
 
-    接收到一帧点云
-    从IMU原始数据队列找到该帧点云时间戳对应的数据，将IMU的roll、pitch、yaw塞进准备发布的该帧点云信息
-    
-    提取该帧点云的起止时间戳（激光雷达点云的每个点都有相对于该帧起始时间的时间间隔）
-    
-    对起止时间内的IMU数据进行角度积分，得到该帧点云每个时刻对应的旋转。
-    
-    注意，这里算法使用的是简单的角度累加，实际上是积分的近似，但是在很短的时间内，10Hz雷达对应100ms的扫描时间，近似的累加可以代替角度积分。
-    
-    猜想这里是因为点云去畸变是整个SLAM流程的入口，要保证足够的实时性，因此用累加代替真正的角度积分
-    
-    遍历该帧点云每个点，旋转到起始点坐标系
-    
-    从IMU里程计提取该帧点云对应的位姿（包括位置和旋转），塞进准备发布的该帧点云信息
+        cachePointCloud(); //点云缓存到cloudQueue中
 
-目的
+        deskewInfo(); //获取运动补偿所需信息,imu补偿旋转，odom补偿平移
+        
+        projectPointCloud(); // 创建矩阵cv::Mat保存点云，对点云遍历，在接收到一帧点云后，将纵横线数取出，将distance放入矩阵的range中，补偿过后点云保存到fullCloud中
+
+        cloudExtraction();//提出有效点
+
+        publishClouds();//发布点云
+
+        resetParameters();
+
+#### deskewInfo()功能
+
+确保imu数据覆盖这帧点云,并执行
+
+1.imuDeskewInfo();  //计算每个时刻的姿态角，方便后续查找对应每个点云时间的值
+
+```
+imuRotX[imuPointerCur] = imuRotX[imuPointerCur-1] + angular_x * timeDiff;
+imuRotY[imuPointerCur] = imuRotY[imuPointerCur-1] + angular_y * timeDiff;
+imuRotZ[imuPointerCur] = imuRotZ[imuPointerCur-1] + angular_z * timeDiff;
+imuTime[imuPointerCur] = currentImuTime;
+
+```
+
+2.odomDeskewInfo();  // 1.记录起始时刻对应的odom姿态，便于后端位姿估计  2.计算起始与结束相对运动 transBt
+```
+cloudInfo.initialGuessX = startOdomMsg.pose.pose.position.x;
+cloudInfo.initialGuessY = startOdomMsg.pose.pose.position.y;
+cloudInfo.initialGuessZ = startOdomMsg.pose.pose.position.z;
+```
+
+```
+Eigen::Affine3f transBt = transBegin.inverse() * transEnd;
+```
+
+#### projectPointCloud()功能
+
+创建矩阵cv::Mat保存点云，对点云遍历，在接收到一帧点云后，将纵横线数取出，将distance放入矩阵的range中，补偿过后点云保存到fullCloud中
+
+```
+//取出scan线数
+int rowIdn = laserCloudIn->points[i].ring
+columnIdn = -round((horizonAngle-90.0)/ang_res_x) + Horizon_SCAN/2;
+
+//线性运动补偿
+thisPoint = deskewPoint(&thisPoint, laserCloudIn->points[i].time);
+
+//放入range矩阵中
+rangeMat.at<float>(rowIdn, columnIdn) = range;
+```
+
+其中deskewPoint为去畸变函数，调用findRotation()角度插值，平移不插值
+
+```
+int imuPointerBack = imuPointerFront - 1;
+double ratioFront = (pointTime - imuTime[imuPointerBack]) / (imuTime[imuPointerFront] - imuTime[imuPointerBack]);
+double ratioBack = (imuTime[imuPointerFront] - pointTime) / (imuTime[imuPointerFront] - imuTime[imuPointerBack]);
+*rotXCur = imuRotX[imuPointerFront] * ratioFront + imuRotX[imuPointerBack] * ratioBack;
+*rotYCur = imuRotY[imuPointerFront] * ratioFront + imuRotY[imuPointerBack] * ratioBack;
+*rotZCur = imuRotZ[imuPointerFront] * ratioFront + imuRotZ[imuPointerBack] * ratioBack;
+```
+
+```
+// 新点为 R * p + t ，把点补偿到第一个点对应时刻的位姿
+newPoint.x = transBt(0,0) * point->x + transBt(0,1) * point->y + transBt(0,2) * point->z + transBt(0,3);
+newPoint.y = transBt(1,0) * point->x + transBt(1,1) * point->y + transBt(1,2) * point->z + transBt(1,3);
+newPoint.z = transBt(2,0) * point->x + transBt(2,1) * point->y + transBt(2,2) * point->z + transBt(2,3);
+newPoint.intensity = point->intensity;
+```
 
  1. 通过imuPreintegration的imu积分，提供良好初值
  2. cv::Mat对点云预处理，投影到cv::Mat中
@@ -348,7 +403,7 @@ imu紧耦合： 1. imu对点云做运动补偿（去畸变）2. 给lidar里程�
 
 
 
-##### featureExtraction.cpp
+#### featureExtraction.cpp
 
 **主要流程**
 
@@ -370,7 +425,7 @@ imu紧耦合： 1. imu对点云做运动补偿（去畸变）2. 给lidar里程�
 
 
 
-#####  mapOptimization.cpp
+####  mapOptimization.cpp
 
 
 **目的**
