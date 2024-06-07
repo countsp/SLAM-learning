@@ -37,9 +37,12 @@ LVI-SAM 是一种视觉、激光、IMU 三种传感器紧耦合的里程计框�
 
 
 ---
-* **[LOAM/A-LOAM](#LOAM/A-LOAM)**
 
-  
+* **[LOAM/A-LOAM](#LOAM/A-LOAM)**
+* **[LeGO-LOAM](#LeGO-LOAM)**
+* **[LIO-SAM](#LIO-SAM)**
+
+
 ## LOAM/A-LOAM
 
 **地图构成：**
@@ -182,7 +185,7 @@ Eigen::Vector3d t_point_last = s * t_last_curr;
 
 ---
 
-## LeGO-LOAM （代码部分沿用LOAM）
+## LeGO-LOAM
 ![Screenshot from 2024-04-16 03-11-12](https://github.com/countsp/SLAM-learning/assets/102967883/ff46158b-24aa-4110-96ff-cfdedee72365)
 
 要求lidar水平放置
