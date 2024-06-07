@@ -301,14 +301,45 @@ transformCur[5] += matX.at<float>(2, 0); // y
 
 采用一个因子图对位姿进行优化，引入四个因子（IMU预积分因子、lidar里程计、GPS 因子、回环因子），对机器人状态（位姿、速度、IMU偏置）进行优化。
 
-imu紧耦合： 1. imu对点云做运动补偿（去畸变）2. 给lidar里程计提供初值。3.优化的结果反过来矫正imu的偏移
 
- ![Screenshot from 2024-04-10 02-44-28](https://github.com/countsp/SLAM-learning/assets/102967883/4fb7b2ce-ac9f-40aa-8196-62e1f7d3b0ee)
+![Screenshot from 2024-04-10 02-44-28](https://github.com/countsp/SLAM-learning/assets/102967883/4fb7b2ce-ac9f-40aa-8196-62e1f7d3b0ee)
 
 ![image](https://github.com/countsp/SLAM-learning/assets/102967883/fa4966cc-08fd-4fe5-8190-f75c1340354b)
 
+![Screenshot from 2024-06-06 20-40-36](https://github.com/countsp/SLAM-learning/assets/102967883/d581ce56-b5c0-4262-a598-900fca5b2623)
 
+1. 激光点云运动畸变矫正
+   
+   利用当前帧起止时刻之间的imu数据，imu里程计数据计算预积分，得到每一点时刻的激光点位姿，从而变换到初始时刻激光点坐标系下实现矫正。
 
+2. 特征提取
+   
+   对经过矫正的点云计算曲率，提取角点面点特征（单条扫描线划分6段，每段取20个角点）
+
+3. 特征匹配
+
+   提取局部关键帧map的特征点，与当前帧特征点进行scan-to-map匹配（laserCloudInfoHandler-cornerOptimization）
+
+   使用kd-tree在局部角点map中查找当前角点相邻的5个角点；LM位姿（LMOptimizaion）迭代30次 估计当前点云相对map的位姿；transformUpdate()
+
+4. 因子图优化
+   
+   添加激光里程计因子、GPS因子、闭环因子，执行因子图优化，更新所有关键帧位姿。
+
+5. 闭环检测
+
+   在历史关键帧中找候选闭环匹配帧，执行scan-to-map匹配，得到位姿变换，构建闭环因子，加入到因子图中一并优化。   
+
+   
+**imu紧耦合作用**
+
+1. imu对点云做运动补偿（去畸变）2. 给lidar里程计提供初值。3.优化的结果反过来矫正imu的偏移
+
+imu预积分使用gt-sam实现
+
+```
+imuIntegratorImu_ = new gtsam::PreintegratedImuMeasurements(p, prior_imu_bias);
+```
 
 
 ### imageProjection.cpp 点云去畸变（对旋转，不对平移）
