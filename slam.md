@@ -113,7 +113,7 @@ scan-to-map 算法使用5×5×3的栅格局部地图与scan匹配。
 
 ![Screenshot from 2024-04-10 03-28-05](https://github.com/countsp/SLAM-learning/assets/102967883/92e2436f-eb7a-4ae3-a2e4-9d46de53e081)
 
-通过同一个线上邻近两点的距离差来判定角点和面点。面点的c小，角点的c大。
+通过同一个平行线上邻近两点到雷达的距离差来判定角点和面点。面点的c小，角点的c大。
 
 
 2.删除异常点(LIO-SAM中实现，A-LOAM无)
