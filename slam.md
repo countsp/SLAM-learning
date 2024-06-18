@@ -113,7 +113,7 @@ scan-to-map 算法使用5×5×3的栅格局部地图与scan匹配。
 
 ![Screenshot from 2024-04-10 03-28-05](https://github.com/countsp/SLAM-learning/assets/102967883/92e2436f-eb7a-4ae3-a2e4-9d46de53e081)
 
-通过同一个平行线上邻近两点到雷达的距离差来判定角点和面点。面点的c小，角点的c大。
+通过同一个平行线上邻近两点到雷达的距离差来判定角点和面点。面点的c小，角点的c大。在将一段范围内点的c排序后找到最大的角点。
 
 
 2.删除异常点(LIO-SAM中实现，A-LOAM无)
@@ -161,14 +161,15 @@ for (int i = 5; i < cloudSize - 5; i++)
 
         cloudCurvature[i] = diffX * diffX + diffY * diffY + diffZ * diffZ;
 ```
+4. 特征点匹配
 
-使用KD-tree寻找两帧之间的匹配对
+将线点和面点放在KD-tree中，使用KD-tree寻找两帧之间的匹配对
 
 ![Screenshot from 2024-04-10 03-44-05](https://github.com/countsp/SLAM-learning/assets/102967883/84439891-a796-44d7-b871-8d3e41925b7c)
 
-匹配线寻找：i是k+1帧边缘点的一部分，找到上一帧离i最近的线点j，j与i不同扫描线。
+匹配线寻找：i是当前帧k+1帧线点的一部分，找到上一帧（k帧）的线做匹配：在上一帧k帧找离i最近的线点j，再在j周边找最近的线点l（j与l不同扫描线），jl构成线，i与线jl构成残差。
 
-匹配面寻找：找到上一帧离i最近的面点j，同一扫描线找j最近面点l，与i不同扫描线上最近面点m
+匹配面寻找：i是当前帧k+1帧面点的一部分，找到上一帧（k帧）离i最近的面点j，同一扫描线找j的最近面点l，与i不同扫描线上最近面点m，jlm构成面，i与jlm构成残差。
 
 ![Screenshot from 2024-04-10 04-18-17](https://github.com/countsp/SLAM-learning/assets/102967883/fae738d8-3758-468a-8aa4-a605cf13e817)
 
@@ -179,7 +180,7 @@ for (int i = 5; i < cloudSize - 5; i++)
 点到面距离计算：k帧中有点j,m,l;k+1帧中有点i
 
 
-4.运动估计
+5.运动估计
 
 ![Screenshot from 2024-04-10 04-55-07](https://github.com/countsp/SLAM-learning/assets/102967883/d8136bb7-0ab2-45d0-993d-22e5635a3882)
 
@@ -193,7 +194,7 @@ for (int i = 5; i < cloudSize - 5; i++)
 
 论文中使用LM，代码用高斯牛顿法
 
-5.运动补偿
+6.运动补偿
 
 运动补偿的目的就是把所有的点云补偿到某一个时刻，这样就可以把本身在过去100ms 内收集的点云统一到一个时间点上去
 
@@ -213,7 +214,7 @@ for (int i = 5; i < cloudSize - 5; i++)
 Eigen::Quaterniond q_point_last = Eigen::Quaterniond::Identity().slerp(s, q_last_curr); //slerp: Spherical linear interpolation 插值
 Eigen::Vector3d t_point_last = s * t_last_curr;
 ```
-6.建图(后端)
+7.建图(后端)
 
 栅格匹配找匹配对，方法为3D KD-tree
 
