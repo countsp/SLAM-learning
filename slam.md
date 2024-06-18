@@ -215,8 +215,8 @@ Eigen::Quaterniond q_point_last = Eigen::Quaterniond::Identity().slerp(s, q_last
 Eigen::Vector3d t_point_last = s * t_last_curr;
 ```
 7.建图(后端)
-
-栅格匹配找匹配对，方法为3D KD-tree
+ 
+同样找线点与面点，特征点数量为前端的10倍，同样用KD-tree与栅格地图找匹配对，方法为3D KD-tree
 
 对协方差矩阵进行分解，分解为特征值和特征向量。如果是线点，一个特征值明显大于其余两个。如果面点，两个特征值比较大，小的特征值对应特征向量是面的法向量。
 
