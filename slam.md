@@ -220,6 +220,18 @@ Eigen::Vector3d t_point_last = s * t_last_curr;
 
 对协方差矩阵进行分解，分解为特征值和特征向量。如果是线点，一个特征值明显大于其余两个。如果面点，两个特征值比较大，小的特征值对应特征向量是面的法向量。
 
+8.ceres 优化
+```
+ceres::LossFunction *loss_function = new ceres::HuberLoss(0.1);   //定义核函数
+ceres::LocalParameterization *q_parameterization = new ceres::EigenQuaternionParameterization(); //旋转不满足一般意义的加法，使用ceres自带的工具
+ceres::Problem::Options problem_options;
+
+ceres::Problem problem(problem_options);
+
+problem.AddParameterBlock(para_q, 4, q_parameterization); // 待优化变量为para_q数组的前四个变量，与para_t数组的前三个变量
+problem.AddParameterBlock(para_t, 3);
+```
+
 ---
 
 ## LeGO-LOAM
