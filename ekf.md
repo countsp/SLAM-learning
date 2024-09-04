@@ -1,3 +1,4 @@
+# KF
 ### 估计一个在一维直线上匀速运动的物体的位置和速度。该滤波器考虑到了系统的噪声和测量的噪声。
 ### 卡尔曼滤波器参数解释
 
@@ -27,11 +28,8 @@
 
 
 这些参数共同工作，使卡尔曼滤波器能够有效地对系统状态进行估计和更新，即使在存在噪声的情况下也能提供较为准确的动态跟踪。
-### 输入输出
-### 卡尔曼滤波器的预测步骤
 
-#### 输入
-### 卡尔曼滤波器预测步骤
+### 输入输出
 
 #### 输入
 1. **当前状态估计（`x_{k-1}`）**：
@@ -54,13 +52,9 @@
    - 这是预测状态的更新误差协方差，反映了预测的不确定性。
 
 ### 处理流程
-- 预测阶段的输出，即状态估计和误差协方差将作为下一更新阶段的输入，结合新的观测数据来细化和优化状态估计。
 
+先预测（x,p），预测出的值是输出，再更新参数
 
-### 处理流程
-- 预测阶段输出的状态估计和误差协方差将被用作下一步更新阶段的输入，结合新的观测数据来修正和优化状态估计。
-
-### 流程：先预测（x,p），预测出的值是输出，再更新参数
 ### 卡尔曼滤波器的预测和更新步骤
 
 ![Screenshot from 2024-09-04 11-37-17](https://github.com/user-attachments/assets/dde62c0f-fcb0-45c8-8429-b47dae67ad3f)
@@ -123,5 +117,91 @@ for z in measurements:
     kf.update(z)
     print(f"Predicted state: {kf.x_hat}")
 
+```
+# EKF
+
+### 匀加速运动的预测
+
+### 代码
+```
+import numpy as np
+
+class KalmanFilter:
+    def __init__(self, delta_t, sigma_process, sigma_measurement, initial_state):
+        self.delta_t = delta_t  # 时间步长
+        self.sigma_process = sigma_process  # 过程噪声的标准差
+        self.sigma_measurement = sigma_measurement  # 测量噪声的标准差
+        self.x_hat = np.array(initial_state)  # 状态估计 [位置, 速度, 加速度]
+        self.P = np.eye(3)  # 误差协方差矩阵
+
+        # 状态转移矩阵 A
+        self.A = np.array([[1, delta_t, 0.5 * delta_t**2],
+                           [0, 1, delta_t],
+                           [0, 0, 1]])
+
+        # 观测矩阵 H
+        self.H = np.array([[1, 0, 0]])
+
+        # 过程噪声协方差矩阵 Q
+        self.Q = np.array([[delta_t**5 / 20, delta_t**4 / 8, delta_t**3 / 6],
+                           [delta_t**4 / 8, delta_t**3 / 3, delta_t**2 / 2],
+                           [delta_t**3 / 6, delta_t**2 / 2, delta_t]]) * sigma_process**2
+
+        # 测量噪声协方差矩阵 R
+        self.R = np.array([[sigma_measurement**2]])
+
+    def predict(self):
+        # 状态预测
+        self.x_hat = np.dot(self.A, self.x_hat)
+        # 误差协方差预测
+        self.P = np.dot(self.A, np.dot(self.P, self.A.T)) + self.Q
+
+    def update(self, z):
+        # 计算卡尔曼增益 K
+        S = np.dot(self.H, np.dot(self.P, self.H.T)) + self.R
+        K = np.dot(self.P, np.dot(self.H.T, np.linalg.inv(S)))
+
+        # 更新估计
+        y = z - np.dot(self.H, self.x_hat)
+        self.x_hat += np.dot(K, y)
+
+        # 更新误差协方差
+        I = np.eye(self.H.shape[1])
+        self.P = np.dot((I - np.dot(K, self.H)), self.P)
+
+# 创建卡尔曼滤波器实例
+kf = KalmanFilter(delta_t=0.1, sigma_process=0.1, sigma_measurement=10.0, initial_state=[0, 0, 0])
+
+# 模拟测量数据
+measurements = [0, 0.5, 2.0, 4.5, 8.0]  # 假设这是位置的测量值
+
+# 应用卡尔曼滤波器
+for z in measurements:
+    kf.predict()
+    kf.update(z)
+    print(f"Predicted state: {kf.x_hat}")
+
 
 ```
+## 思路
+1.找到状态转移函数
+
+状态转移函数 f(x) 描述了在系统中，状态 x 如何从一个时刻 k−1 演变到下一个时刻 k
+
+2.找到状态x
+
+状态向量 x 是系统的核心变量，它包含了对系统状态的完整描述。在匀加速运动中，状态向量通常包括位置、速度和加速度 x=[s,v,a]。
+
+3.求状态转移函数对状态 x 的雅可比矩阵
+
+计算状态转移函数 f(x) 对状态 x 的偏导数
+
+4.找到观测函数 h(x)
+
+观测函数 h(x) 描述了系统的测量值 z 如何从状态向量 x 中得到。对于非线性系统，观测函数也可以是非线性的。
+
+5.求观测函数对状态 x 的雅可比矩阵
+
+6.初始状态估计 x0 和初始协方差矩阵 P0
+
+7.定义过程噪声和测量噪声的协方差矩阵
