@@ -1,6 +1,12 @@
 为什么后端比前端优化器好？
 为什么loam不能做回环检测？
 
+* **[LOAM/A-LOAM](#LOAM/A-LOAM)**
+* **[LeGO-LOAM](#LeGO-LOAM)**
+* **[LIO-SAM](#LIO-SAM)**
+* **[VINS-Mono](#VINS-Mono)**
+* **[LVI-SAM](#LVI-SAM)**
+
 # 多传感器融合
 
 缺点就是现有的通用的视觉 slam 技术依赖图像的纹理来进行特征点的提取，没有纹理或者黑夜图像就很难被很好的利用。
@@ -70,12 +76,6 @@ LVI-SAM 是一种视觉、激光、IMU 三种传感器紧耦合的里程计框�
 
 
 ---
-
-* **[LOAM/A-LOAM](#LOAM/A-LOAM)**
-* **[LeGO-LOAM](#LeGO-LOAM)**
-* **[LIO-SAM](#LIO-SAM)**
-* **[VINS-Mono](#VINS-Mono)**
-* **[LVI-SAM](#LVI-SAM)**
 
 
 
