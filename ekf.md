@@ -205,3 +205,47 @@ for z in measurements:
 6.初始状态估计 x0 和初始协方差矩阵 P0
 
 7.定义过程噪声和测量噪声的协方差矩阵
+
+
+# ESKF
+
+和EKF差不多，只是在误差协方差 P 上稍微修改了。
+
+```
+def eskf(x, P, z, dt, R, Q):
+    # 预测步骤
+    F = F_jacobian(x, dt)
+    x_pred = f(x, dt)
+    P_pred = F @ P @ F.T + Q  # 预测协方差矩阵
+
+    # 更新步骤
+    H = H_jacobian(x)
+    y = z - h(x_pred)  # 观测残差
+    S = H @ P_pred @ H.T + R  # 观测预测协方差
+    K = P_pred @ H.T @ np.linalg.inv(S)  # 卡尔曼增益
+    x_new = x_pred + K @ y  # 更新后的状态估计
+
+    # 通过增强误差状态进行调整
+    P_new = (np.eye(len(x)) - K @ H) @ P_pred  # 更新后的协方差矩阵
+    P_new = np.maximum(P_new, 1e-6 * np.eye(len(x)))  # 增强稳定性（避免协方差矩阵变得过小） ********************
+
+    return x_new, P_new
+
+
+def ekf(x, P, z, dt, R, Q):
+    # 预测步骤
+    F = F_jacobian(x, dt)
+    x_pred = f(x, dt)
+    P_pred = F @ P @ F.T + Q  # 预测协方差矩阵
+
+    # 更新步骤
+    H = H_jacobian(x)
+    y = z - h(x_pred)  # 观测残差
+    S = H @ P_pred @ H.T + R  # 观测预测协方差
+    K = P_pred @ H.T @ np.linalg.inv(S)  # 卡尔曼增益
+    x_new = x_pred + K @ y  # 更新后的状态估计
+    P_new = (np.eye(len(x)) - K @ H) @ P_pred  # 更新后的协方差矩阵************************************
+
+    return x_new, P_new
+
+```
