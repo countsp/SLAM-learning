@@ -805,3 +805,14 @@ LVI-SAM运行时依赖 相机数据、激光雷达数据、IMU数据、传感器
 3、后端滑动窗口的引入，使得构建局部地图更加方便，也更加方便实现纯里程记功能
 
 4、对 GPS 的融合的谨慎的使用方式，使得既引入了全局观测，又不会对当前里程记的平滑性产生负面影响
+
+
+# ORB-SLAM
+
+**演变**
+
+![Screenshot from 2025-01-22 15-11-35](https://github.com/user-attachments/assets/ceb866c4-d758-4e0e-a985-2b9348abe69e)
+
+**ORB-slam2**
+
+![Screenshot from 2025-01-22 15-12-07](https://github.com/user-attachments/assets/33a6fc4f-176d-4e74-b3de-960cb9e2b195)
