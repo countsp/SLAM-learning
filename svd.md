@@ -1,6 +1,6 @@
 # 如何计算得到 U 的值（SVD 分解详细步骤）
 
-在奇异值分解 (SVD) 中，\( U \) 是通过本质矩阵 \( E \) 的 **左奇异向量** 计算得到的，这些向量是 \( E E^T \) 的特征向量。
+在奇异值分解 (SVD) 中，矩阵 \( U \) 是通过本质矩阵 \( E \) 的 **左奇异向量** 计算得到的，这些向量是矩阵 \( E E^T \) 的特征向量。
 
 ---
 
@@ -8,7 +8,7 @@
 
 根据定义：
 \[
-E E^T = 
+E E^T =
 \begin{bmatrix}
 0 & -1 & 0 \\
 1 &  0 & -2 \\
@@ -23,7 +23,7 @@ E E^T =
 
 计算结果为：
 \[
-E E^T = 
+E E^T =
 \begin{bmatrix}
 1 & 0 & -2 \\
 0 & 5 &  0 \\
@@ -31,25 +31,20 @@ E E^T =
 \end{bmatrix}
 \]
 
----特征值
+---
 
-特征值 ( \lambda ) 满足： [ \det(E E^T - \lambda I) = 0 ]
-
-对于 ( E E^T )： [ E E^T - \lambda I = \begin{bmatrix} 1 - \lambda & 0 & -2 \ 0 & 5 - \lambda & 0 \ -2 & 0 & 4 - \lambda \end{bmatrix} ]
-
-解得特征值： [ \lambda_1 = 5, \quad \lambda_2 = 2.236, \quad \lambda_3 = 0 ]
-
-## 2. 求解 \( E E^T \) 的特征值和特征向量
+## 2. 求解特征值和特征向量
 
 ### 特征值
-特征值 \( \lambda \) 满足：
+
+特征值 \( \lambda \) 满足以下特征方程：
 \[
 \det(E E^T - \lambda I) = 0
 \]
 
 对于 \( E E^T \)：
 \[
-E E^T - \lambda I = 
+E E^T - \lambda I =
 \begin{bmatrix}
 1 - \lambda & 0 & -2 \\
 0 & 5 - \lambda & 0 \\
@@ -58,28 +53,29 @@ E E^T - \lambda I =
 \]
 
 解得特征值：
-\[
-\lambda_1 = 5, \quad \lambda_2 = 2.236, \quad \lambda_3 = 0
-\]
+- \( \lambda_1 = 5 \)
+- \( \lambda_2 = 2.236 \)
+- \( \lambda_3 = 0 \)
 
 ---
 
 ### 特征向量
-对于每个特征值 \( \lambda_i \)，求解线性方程 \( (E E^T - \lambda_i I) \mathbf{u} = 0 \)。
 
-#### 1. 对 \( \lambda_1 = 5 \)
+根据每个特征值 \( \lambda_i \)，求解线性方程组 \( (E E^T - \lambda_i I) \mathbf{u} = 0 \) 来计算特征向量：
+
+#### 对 \( \lambda_1 = 5 \)
 解得特征向量：
 \[
 \mathbf{u_1} = \begin{bmatrix} 0 \\ 1 \\ 0 \end{bmatrix}
 \]
 
-#### 2. 对 \( \lambda_2 = 2.236 \)
+#### 对 \( \lambda_2 = 2.236 \)
 解得特征向量：
 \[
 \mathbf{u_2} = \begin{bmatrix} -0.447 \\ 0 \\ 0.894 \end{bmatrix}
 \]
 
-#### 3. 对 \( \lambda_3 = 0 \)
+#### 对 \( \lambda_3 = 0 \)
 解得特征向量：
 \[
 \mathbf{u_3} = \begin{bmatrix} -0.894 \\ 0 \\ -0.447 \end{bmatrix}
@@ -91,7 +87,7 @@ E E^T - \lambda I =
 
 将特征向量按列排列，构造正交矩阵 \( U \)：
 \[
-U = 
+U =
 \begin{bmatrix}
 0 & -0.447 & -0.894 \\
 1 & 0 & 0 \\
