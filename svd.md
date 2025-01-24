@@ -31,7 +31,13 @@ E E^T =
 \end{bmatrix}
 \]
 
----
+---特征值
+
+特征值 ( \lambda ) 满足： [ \det(E E^T - \lambda I) = 0 ]
+
+对于 ( E E^T )： [ E E^T - \lambda I = \begin{bmatrix} 1 - \lambda & 0 & -2 \ 0 & 5 - \lambda & 0 \ -2 & 0 & 4 - \lambda \end{bmatrix} ]
+
+解得特征值： [ \lambda_1 = 5, \quad \lambda_2 = 2.236, \quad \lambda_3 = 0 ]
 
 ## 2. 求解 \( E E^T \) 的特征值和特征向量
 
